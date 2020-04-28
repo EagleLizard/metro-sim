@@ -33,7 +33,8 @@ export function SimView(props) {
       ref={canvasRef}
       width={width}
       height={height}
-      onClick={(e) => handleClick(e)}/>
+      onClick={(e) => handleClick(e)}
+    />
   );
 }
 

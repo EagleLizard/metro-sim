@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
 import { world } from './world-service';
+import { Runtime } from '../world/runtime';
+import { editCtrl } from './edit-ctrl';
 
 import { SimView } from './sim-view/sim-view';
-import { TopTools } from './top-tools/top-tools';
+import { TopTools, EDIT_MODES } from './top-tools/top-tools';
 
 import './app.scss';
 
@@ -11,6 +13,9 @@ export function App() {
   const [ entities, _setEntities ] = useState([]);
   const [ running, setRunning ] = useState(world.running);
   const [ epochMs, setEpochMs ] = useState(world.epochMs);
+  const [ drawRt, setDrawRt ] = useState(null);
+  const [ editMode, setEditMode ] = useState(null);
+  const [ editAction, setEditAction ] = useState(null);
 
   const setEntities = (entities) => {
     // always perform an array copy to tell child components to update
@@ -18,24 +23,55 @@ export function App() {
   };
 
   useEffect(() => {
-    let deregisterCb;
-    deregisterCb = world.onTick(() => {
-      setEntities(world.entities);
+    let worldDeregisterCb, drawDeregisterCb, _drawRt;
+    _drawRt = new Runtime();
+    setDrawRt(_drawRt);
+
+    worldDeregisterCb = world.onTick(() => {
       setEpochMs(world.epochMs);
     });
-    return () => deregisterCb();
+    drawDeregisterCb = _drawRt.onTick(() => {
+      setEntities(world.entities);
+    });
+
+    _drawRt.start();
+
+    return () => {
+      world.pause();
+      drawRt.pause();
+      worldDeregisterCb();
+      drawDeregisterCb();
+    };
   }, []);
 
   const handleClick = (evt) => {
-    world.createStation(evt.x, evt.y);
+    editCtrl.handleClick(evt, editMode, editAction);
+  //   world.createStation(evt.x, evt.y);
   };
 
   const handlePlayClick = () => {
     world.running
       ? world.pause()
       : world.play();
-    console.log(running);
     setRunning(world.running);
+  };
+
+  const handleEditorChange = (mode, selected) => {
+    let selectedEditAction;
+    if(selected !== undefined) {
+      switch(mode) {
+        case EDIT_MODES.ADD:
+          selectedEditAction = selected.entityType;
+          break;
+        case EDIT_MODES.EDIT:
+          selectedEditAction = selected.editType;
+          break;
+      }
+    }
+    console.log(mode);
+    console.log(selectedEditAction);
+    setEditMode(mode);
+    setEditAction(selectedEditAction);
   };
 
   return (
@@ -43,6 +79,7 @@ export function App() {
       <TopTools
         running={running}
         onPlayClick={handlePlayClick}
+        onEditorChange={handleEditorChange}
       />
       <div>
         Runtime: { epochMs / 1000 }s
